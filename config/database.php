@@ -1,32 +1,26 @@
 <?php
-declare(strict_types=1);
+// config/database.php
+// Returns a PDO instance — require this file wherever you need DB access
 
-/*
-|--------------------------------------------------------------------------
-| PDO Database Connection
-|--------------------------------------------------------------------------
-| Creates a PDO instance using configuration values.
-| Returns a ready-to-use PDO object.
-*/
+$host   = '127.0.0.1';
+$dbname = 'inventory_profit_system';
+$user   = 'root';
+$pass   = '';          // ← change to your MySQL password
+$charset = 'utf8mb4';
 
-$config=require __DIR__.'/config.php';
-$db=$config['db'];
+$dsn = "mysql:host={$host};dbname={$dbname};charset={$charset}";
 
-$dsn=
-"{$db['driver']}:host={$db['host']};".
-"port={$db['port']};".
-"dbname={$db['database']};".
-"charset={$db['charset']}";
-
-$options=[
-PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
-PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,
-PDO::ATTR_EMULATE_PREPARES=>false
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
 ];
 
-return new PDO(
-$dsn,
-$db['username'],
-$db['password'],
-$options
-);
+try {
+    $conn = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
+    http_response_code(500);
+    die(json_encode(['success' => false, 'message' => 'Database connection failed: ' . $e->getMessage()]));
+}
+
+return $conn;
