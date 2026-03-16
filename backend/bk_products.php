@@ -13,20 +13,20 @@ function jsonErr($msg)                     { echo json_encode(['success' => fals
 // ── Add Product ───────────────────────────────────────────────────────────────
 if ($request === 'addProduct') {
     $name  = trim($_POST['product_name']        ?? '');
-    $sku   = trim($_POST['product_sku']         ?? '');
+    $code   = trim($_POST['product_code']         ?? '');
     $price = (float)($_POST['selling_price']    ?? 0);
     $desc  = trim($_POST['product_description'] ?? '');
 
     if (!$name)  jsonErr('Product name is required.');
-    if (!$sku)   jsonErr('SKU is required.');
+    if (!$code)   jsonErr('code is required.');
     if ($price < 0) jsonErr('Selling price must be 0 or greater.');
 
-    $check = $conn->prepare("SELECT COUNT(*) FROM products WHERE product_sku = ?");
-    $check->execute([$sku]);
-    if ($check->fetchColumn() > 0) jsonErr("SKU '{$sku}' is already in use.");
+    $check = $conn->prepare("SELECT COUNT(*) FROM products WHERE product_code = ?");
+    $check->execute([$code]);
+    if ($check->fetchColumn() > 0) jsonErr("code '{$code}' is already in use.");
 
-    $stmt = $conn->prepare("INSERT INTO products (product_name, product_sku, selling_price, product_description) VALUES (?, ?, ?, ?)");
-    $stmt->execute([$name, $sku, $price, $desc ?: null]);
+    $stmt = $conn->prepare("INSERT INTO products (product_name, product_code, selling_price, product_description) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$name, $code, $price, $desc ?: null]);
 
     // Return the new product_id so the caller can immediately add the first batch
     $newId = (int)$conn->lastInsertId();
@@ -38,20 +38,20 @@ if ($request === 'addProduct') {
 if ($request === 'editProduct') {
     $pid   = (int)($_POST['product_id']         ?? 0);
     $name  = trim($_POST['product_name']        ?? '');
-    $sku   = trim($_POST['product_sku']         ?? '');
+    $code   = trim($_POST['product_code']         ?? '');
     $price = (float)($_POST['selling_price']    ?? 0);
     $desc  = trim($_POST['product_description'] ?? '');
 
     if (!$pid)  jsonErr('Invalid product.');
     if (!$name) jsonErr('Product name is required.');
-    if (!$sku)  jsonErr('SKU is required.');
+    if (!$code)  jsonErr('code is required.');
 
-    $check = $conn->prepare("SELECT COUNT(*) FROM products WHERE product_sku = ? AND product_id != ?");
-    $check->execute([$sku, $pid]);
-    if ($check->fetchColumn() > 0) jsonErr("SKU '{$sku}' is already used by another product.");
+    $check = $conn->prepare("SELECT COUNT(*) FROM products WHERE product_code = ? AND product_id != ?");
+    $check->execute([$code, $pid]);
+    if ($check->fetchColumn() > 0) jsonErr("code '{$code}' is already used by another product.");
 
-    $stmt = $conn->prepare("UPDATE products SET product_name=?, product_sku=?, selling_price=?, product_description=? WHERE product_id=?");
-    $stmt->execute([$name, $sku, $price, $desc ?: null, $pid]);
+    $stmt = $conn->prepare("UPDATE products SET product_name=?, product_code=?, selling_price=?, product_description=? WHERE product_id=?");
+    $stmt->execute([$name, $code, $price, $desc ?: null, $pid]);
 
     jsonOk('Product updated.');
 }
