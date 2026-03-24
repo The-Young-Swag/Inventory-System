@@ -109,23 +109,30 @@
     </div>
 
     <!-- ── Product Cards Grid ─────────────────────────────────────────── -->
-    <div class="flex-shrink-0 px-6 pb-5">
-        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
-            <div class="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 animate-pulse space-y-3">
-                <div class="h-3 bg-slate-800 rounded w-2/3"></div>
-                <div class="h-2 bg-slate-800 rounded w-1/2"></div>
-                <div class="h-1 bg-slate-800 rounded mt-2"></div>
-                <div class="grid grid-cols-2 gap-2 mt-2">
-                    <div class="h-10 bg-slate-800 rounded-xl"></div>
-                    <div class="h-10 bg-slate-800 rounded-xl"></div>
+<div class="flex-shrink-0 px-6 pb-5">
+    <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+        {{-- skeleton --}}
+        <?php foreach (range(1, 3) as $_): ?>
+        <div class="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 animate-pulse space-y-3">
+            <div class="flex items-start justify-between">
+                <div class="space-y-1.5">
+                    <div class="h-3.5 bg-slate-800 rounded w-32"></div>
+                    <div class="h-2.5 bg-slate-800 rounded w-20"></div>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <div class="h-9 bg-slate-800 rounded-xl"></div>
-                    <div class="h-9 bg-slate-800 rounded-xl"></div>
-                </div>
+                <div class="h-5 bg-slate-800 rounded-full w-20"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <div class="h-12 bg-slate-800 rounded-xl"></div>
+                <div class="h-12 bg-slate-800 rounded-xl"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="h-9 bg-slate-800 rounded-xl"></div>
+                <div class="h-9 bg-slate-800 rounded-xl"></div>
             </div>
         </div>
+        <?php endforeach; ?>
     </div>
+</div>
 
     <!-- ── Transaction Log ────────────────────────────────────────────── -->
     <div class="flex-1 min-h-0 px-6 pb-6">
@@ -318,346 +325,182 @@
 
 <script>
 $(function () {
-    'use strict';
 
-    // === CONFIG =======================================================
-    const BACKEND = 'backend/bk_dashboard.php';
+    // ── Product Cards ──────────────────────────────────────────────
+    function loadProductCards() {
+        $.post("backend/bk_dashboard.php",
+            { request: "getProductCards" },
+            data => $("#productGrid").html(data)
+        );
+    }
+    loadProductCards();
 
-    // === DOM SELECTOR =================================================
-    const $id = id => $('#' + id);
-
-    // === ID MAP (grouped by feature) ==================================
-    const ID = {
-        clock: 'dashClock',
-        kpi: {
-            capital: 'kpi-capital', stock: 'kpi-stockval',
-            revenue: 'kpi-revenue', profit: 'kpi-profit'
-        },
-        products: {
-            grid: 'productGrid', count: 'productCount',
-            search: 'productSearch', addBtn: 'btnAddProduct'
-        },
-        txn: 'txnLog',
-        add: {
-            name: 'ap-name', code: 'ap-code', desc: 'ap-desc',
-            qty: 'ap-qty', cost: 'ap-cost', totalCapital: 'ap-totalCapital',
-            submit: 'btnSubmitAddProduct'
-        },
-        sell: {
-            id: 'sell-productId', label: 'sell-productLabel', available: 'sell-available',
-            qty: 'sell-qty', price: 'sell-price',
-            cost: 'sell-previewCost', revenue: 'sell-previewRevenue',
-            profit: 'sell-previewProfit', error: 'sell-previewError',
-            submit: 'btnSubmitSell'
-        },
-        restock: {
-            id: 'restock-productId', label: 'restock-productLabel',
-            qty: 'restock-qty', cost: 'restock-cost',
-            capital: 'restock-previewCapital', submit: 'btnSubmitRestock'
+    // ── KPIs ───────────────────────────────────────────────────────
+    $.post("backend/bk_dashboard.php",
+        { request: "getKPIs" },
+        data => {
+            const d = JSON.parse(data);
+            if (!d.success) return;
+            const fmt = n => "₱" + parseFloat(n).toLocaleString("en-PH", { minimumFractionDigits: 2 });
+            $("#kpi-capital").text(fmt(d.capital));
+            $("#kpi-stockval").text(fmt(d.stock_value));
+            $("#kpi-revenue").text(fmt(d.revenue));
+            $("#kpi-profit").text(fmt(d.profit));
         }
-    };
+    );
 
-    // === MODAL CONTROLLER =============================================
-    const Modal = {
-        open: id => $('#' + id).removeClass('hidden').addClass('flex'),
-        close: id => $('#' + id).addClass('hidden').removeClass('flex')
-    };
+    // ── Transaction Log ────────────────────────────────────────────
+    $.post("backend/bk_dashboard.php",
+        { request: "getTransactionLog" },
+        data => $("#txnLog").html(data)
+    );
 
-    // === UTILITIES =====================================================
-    const peso = val => '₱' + parseFloat(val || 0).toLocaleString('en-PH', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
+    // ── Sell modal open ────────────────────────────────────────────
+    $(document).on("click", ".btn-sell", function () {
+        const $card = $(this).closest("[data-product-id]");
+        $("#sell-productId").val($card.data("product-id"));
+        $("#sell-productLabel").text($card.data("product-name"));
+        $("#sell-available").text($card.data("stock-remaining"));
+        $("#sell-qty, #sell-price").val("");
+        $("#sell-previewCost, #sell-previewRevenue").text("—");
+        $("#sell-previewProfit").text("—").removeClass("text-emerald-400 text-rose-400").addClass("text-slate-400");
+        $("#sell-previewError").addClass("hidden").text("");
+        $("#btnSubmitSell").prop("disabled", true);
+        $("#modalSell").removeClass("hidden");
     });
 
-    const parseJSON = raw => { try { return JSON.parse(raw) } catch { return null } };
+    // ── Restock modal open ─────────────────────────────────────────
+    $(document).on("click", ".btn-restock", function () {
+        const $card = $(this).closest("[data-product-id]");
+        $("#restock-productId").val($card.data("product-id"));
+        $("#restock-productLabel").text($card.data("product-name"));
+        $("#restock-qty, #restock-cost").val("");
+        $("#restock-previewCapital").text("₱0.00");
+        $("#modalRestock").removeClass("hidden");
+    });
 
-    // API call that auto‑parses response
-    const apiJSON = (action, data = {}) =>
-        $.post(BACKEND, { action, ...data }).then(parseJSON);
+    // ── Sell preview (debounced) ───────────────────────────────────
+    let sellDebounce;
+    $("#sell-qty, #sell-price").on("input", function () {
+        clearTimeout(sellDebounce);
+        sellDebounce = setTimeout(() => {
+            const productId = $("#sell-productId").val();
+            const qty   = parseInt($("#sell-qty").val())   || 0;
+            const price = parseFloat($("#sell-price").val()) || 0;
 
-    // Returns product from state by ID
-    const getProduct = id => State.products.find(p => p.product_id === id);
-
-    // Resets sell preview fields (used in multiple places)
-    const resetSellPreview = () => {
-        $id(ID.sell.cost).text('—');
-        $id(ID.sell.revenue).text('—');
-        $id(ID.sell.profit)
-            .text('—')
-            .removeClass('text-emerald-400 text-rose-400')
-            .addClass('text-slate-400');
-    };
-
-    // Empty product grid HTML (extracted for readability)
-    const EMPTY_PRODUCTS_HTML = `
-        <div class="col-span-4 flex flex-col items-center justify-center py-16 gap-3">
-            <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center">
-                <svg class="w-5 h-5 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10"/>
-                </svg>
-            </div>
-            <div class="text-center">
-                <p class="text-sm text-slate-500 font-medium">No products yet</p>
-                <p class="text-xs text-slate-600 mt-0.5">Click "Add Product" to get started</p>
-            </div>
-        </div>`;
-
-    // === STATE =========================================================
-    const State = {
-        products: [],
-        clockTimer: null,
-        previewTimer: null
-    };
-
-    // === CORE APPLICATION ==============================================
-    const App = {
-        // ---- stock badge & product card builder -----------------------
-        stockBadge(stock) {
-            if (stock <= 0) return `<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20"><span class="w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0"></span>Out of stock</span>`;
-            if (stock <= 5) return `<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0"></span>${stock} left — low</span>`;
-            return `<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>${stock} in stock</span>`;
-        },
-
-        buildCard(p) {
-            const stock = p.stock_remaining;
-            const out = stock <= 0;
-            const pct = p.total_purchased > 0 ? Math.min(100, (stock / p.total_purchased) * 100) : 0;
-            const bar = out ? 'bg-rose-500' : stock <= 5 ? 'bg-amber-400' : 'bg-emerald-400';
-            return `
-            <div class="bg-slate-900 border border-slate-800/80 rounded-2xl p-4 flex flex-col gap-3.5 hover:border-slate-700">
-                <div class="flex items-start justify-between gap-2">
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold text-white truncate">${p.product_name}</p>
-                        <p class="text-[10px] text-slate-500 mt-0.5 truncate">${p.product_code} · ${p.product_description || '—'}</p>
-                    </div>
-                    ${App.stockBadge(stock)}
-                </div>
-                <div class="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                    <div class="h-full ${bar} rounded-full" style="width:${pct}%"></div>
-                </div>
-                <div class="bg-slate-800/50 rounded-xl p-2.5">
-                    <p class="text-[10px] text-slate-500 mb-0.5">Last sell price</p>
-                    <p class="text-sm font-bold text-emerald-400">${p.last_sell_price ? peso(p.last_sell_price) : '<span class="text-slate-600 text-xs">No sales yet</span>'}</p>
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                    <button class="js-open-sell py-2.5 rounded-xl text-xs font-bold ${out ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed' : 'bg-slate-800 hover:bg-emerald-500 hover:text-slate-950 text-slate-300'}" data-product-id="${p.product_id}" ${out ? 'disabled' : ''}>Sell</button>
-                    <button class="js-open-restock py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-blue-500 hover:text-white text-slate-300 flex items-center justify-center gap-1" data-product-id="${p.product_id}"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>Restock</button>
-                </div>
-            </div>`;
-        },
-
-        // ---- clock -----------------------------------------------------
-        startClock() {
-            clearInterval(State.clockTimer);
-            const tick = () => $id(ID.clock).text(new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }));
-            tick();
-            State.clockTimer = setInterval(tick, 30000);
-        },
-
-        // ---- data loading & rendering ----------------------------------
-        refresh() { App.loadKPIs(); App.loadProducts(); App.loadLog(); },
-
-        loadKPIs() {
-            apiJSON('getKPIs').then(res => {
-                if (!res?.success) return;
-                $id(ID.kpi.capital).text(peso(res.capital));
-                $id(ID.kpi.stock).text(peso(res.stock_value));
-                $id(ID.kpi.revenue).text(peso(res.revenue));
-                $id(ID.kpi.profit)
-                    .text(peso(res.profit))
-                    .removeClass('text-emerald-400 text-rose-400')
-                    .addClass(res.profit >= 0 ? 'text-emerald-400' : 'text-rose-400');
-            });
-        },
-
-        loadProducts() {
-            apiJSON('getProductCards').then(res => {
-                if (!res?.success) {
-                    $id(ID.products.grid).html('<p class="col-span-4 text-center text-slate-600 py-10 text-xs">Could not load products.</p>');
-                    return;
-                }
-                State.products = res.products;
-                App.renderProducts(res.products);
-            });
-        },
-
-        renderProducts(prods) {
-            $id(ID.products.count).text(prods.length);
-            if (!prods.length) {
-                $id(ID.products.grid).html(EMPTY_PRODUCTS_HTML);
+            if (qty < 1 || price <= 0) {
+                $("#sell-previewCost, #sell-previewRevenue").text("—");
+                $("#sell-previewProfit").text("—").removeClass("text-emerald-400 text-rose-400").addClass("text-slate-400");
+                $("#sell-previewError").addClass("hidden").text("");
+                $("#btnSubmitSell").prop("disabled", true);
                 return;
             }
-            $id(ID.products.grid).html(prods.map(p => App.buildCard(p)).join(''));
-        },
 
-        loadLog() {
-            apiJSON('getTransactionLog').then(res => {
-                if (!res?.success || !res.transactions.length) {
-                    $id(ID.txn).html('<tr><td colspan="7" class="text-center text-slate-600 py-10 text-xs">No transactions yet</td></tr>');
-                    return;
-                }
-                const rows = res.transactions.map(t => `
-                    <tr class="border-b border-slate-800/40 hover:bg-slate-800/30">
-                        <td class="px-5 py-3 text-slate-600 whitespace-nowrap">#${t.sale_id}</td>
-                        <td class="px-5 py-3 text-slate-300 font-medium whitespace-nowrap">${t.product_name}</td>
-                        <td class="px-5 py-3 text-slate-300 whitespace-nowrap">${t.quantity_sold}</td>
-                        <td class="px-5 py-3 text-slate-300 whitespace-nowrap">${peso(t.unit_price)}</td>
-                        <td class="px-5 py-3 text-sky-400 font-semibold whitespace-nowrap">${peso(t.total_revenue)}</td>
-                        <td class="px-5 py-3 font-bold ${t.total_profit >= 0 ? 'text-emerald-400' : 'text-rose-400'} whitespace-nowrap">${peso(t.total_profit)}</td>
-                        <td class="px-5 py-3 text-slate-600 text-[10px] whitespace-nowrap">${t.sale_date}</td>
-                    </tr>`).join('');
-                $id(ID.txn).html(rows);
-            });
-        },
+            $.post("backend/bk_dashboard.php",
+                { request: "previewSale", product_id: productId, quantity: qty, sell_price: price },
+                raw => {
+                    const d = JSON.parse(raw);
+                    const fmt = n => "₱" + parseFloat(n).toFixed(2);
 
-        // ---- add product -----------------------------------------------
-        openAdd() {
-            $id(ID.add.name).val(''); $id(ID.add.code).val(''); $id(ID.add.desc).val('');
-            $id(ID.add.qty).val(''); $id(ID.add.cost).val(''); $id(ID.add.totalCapital).text('₱0.00');
-            Modal.open('modalAddProduct');
-            setTimeout(() => $id(ID.add.name).focus(), 100);
-        },
-
-        submitAdd() {
-            const name = $id(ID.add.name).val().trim(), code = $id(ID.add.code).val().trim(),
-                  desc = $id(ID.add.desc).val().trim(), qty = $id(ID.add.qty).val(),
-                  cost = $id(ID.add.cost).val();
-            if (!name || !code || !qty || !cost)
-                return window.showToast('Please fill in all required fields', 'error');
-
-            apiJSON('addProduct', { name, code, desc, qty, cost }).then(res => {
-                if (res?.success) {
-                    Modal.close('modalAddProduct');
-                    window.showToast('Product added!', 'success');
-                    App.refresh();
-                } else {
-                    window.showToast(res?.error || 'Failed to add product', 'error');
-                }
-            });
-        },
-
-        // ---- sell ------------------------------------------------------
-        openSell(id) {
-            const p = getProduct(id);
-            if (!p) return;
-            $id(ID.sell.id).val(id);
-            $id(ID.sell.label).text(`${p.product_name} · ${p.product_code}`);
-            $id(ID.sell.available).text(p.stock_remaining);
-            // Reset form + preview
-            $id(ID.sell.qty).val(''); $id(ID.sell.price).val('');
-            resetSellPreview();
-            $id(ID.sell.error).addClass('hidden').text('');
-            $id(ID.sell.submit).prop('disabled', false);
-            Modal.open('modalSell');
-            setTimeout(() => $id(ID.sell.qty).focus(), 100);
-        },
-
-        previewSell() {
-            clearTimeout(State.previewTimer);
-            const pid = parseInt($id(ID.sell.id).val()) || 0;
-            const qty = parseInt($id(ID.sell.qty).val()) || 0;
-            const price = parseFloat($id(ID.sell.price).val()) || 0;
-            if (!pid || qty < 1 || price <= 0) {
-                resetSellPreview();
-                $id(ID.sell.error).addClass('hidden').text('');
-                return;
-            }
-            State.previewTimer = setTimeout(() => {
-                apiJSON('previewSale', { product_id: pid, quantity: qty, sell_price: price }).then(res => {
-                    if (!res?.success) {
-                        resetSellPreview();
-                        $id(ID.sell.error).removeClass('hidden').text(res.error);
-                        $id(ID.sell.submit).prop('disabled', true);
+                    if (!d.success) {
+                        $("#sell-previewError").removeClass("hidden").text(d.error);
+                        $("#btnSubmitSell").prop("disabled", true);
                         return;
                     }
-                    $id(ID.sell.error).addClass('hidden').text('');
-                    $id(ID.sell.submit).prop('disabled', false);
-                    $id(ID.sell.cost).text(peso(res.total_cost));
-                    $id(ID.sell.revenue).text(peso(res.total_revenue));
-                    $id(ID.sell.profit)
-                        .text(peso(res.total_profit))
-                        .removeClass('text-emerald-400 text-rose-400 text-slate-400')
-                        .addClass(res.total_profit >= 0 ? 'text-emerald-400' : 'text-rose-400');
-                });
-            }, 350);
-        },
 
-        submitSell() {
-            const pid = $id(ID.sell.id).val(), qty = $id(ID.sell.qty).val(), price = $id(ID.sell.price).val();
-            if (!qty || !price) return window.showToast('Enter a quantity and sell price', 'error');
-            apiJSON('sellProduct', { product_id: pid, quantity: qty, sell_price: price }).then(res => {
-                if (res?.success) {
-                    Modal.close('modalSell');
-                    window.showToast('Sale recorded!', 'success');
-                    App.refresh();
-                } else {
-                    window.showToast(res?.error || 'Sale failed', 'error');
+                    $("#sell-previewError").addClass("hidden").text("");
+                    $("#sell-previewCost").text(fmt(d.total_cost));
+                    $("#sell-previewRevenue").text(fmt(d.total_revenue));
+
+                    const profitEl = $("#sell-previewProfit");
+                    profitEl.text(fmt(d.total_profit))
+                        .removeClass("text-slate-400 text-emerald-400 text-rose-400")
+                        .addClass(d.total_profit >= 0 ? "text-emerald-400" : "text-rose-400");
+
+                    $("#btnSubmitSell").prop("disabled", false);
                 }
-            });
-        },
-
-        // ---- restock ---------------------------------------------------
-        openRestock(id) {
-            const p = getProduct(id);
-            if (!p) return;
-            $id(ID.restock.id).val(id);
-            $id(ID.restock.label).text(`${p.product_name} · ${p.product_code}`);
-            $id(ID.restock.qty).val(''); $id(ID.restock.cost).val(''); $id(ID.restock.capital).text('₱0.00');
-            Modal.open('modalRestock');
-            setTimeout(() => $id(ID.restock.qty).focus(), 100);
-        },
-
-        submitRestock() {
-            const pid = $id(ID.restock.id).val(), qty = $id(ID.restock.qty).val(), cost = $id(ID.restock.cost).val();
-            if (!qty || !cost) return window.showToast('Enter a quantity and unit cost', 'error');
-            apiJSON('restockProduct', { product_id: pid, quantity: qty, unit_cost: cost }).then(res => {
-                if (res?.success) {
-                    Modal.close('modalRestock');
-                    window.showToast('Stock updated!', 'success');
-                    App.refresh();
-                } else {
-                    window.showToast(res?.error || 'Restock failed', 'error');
-                }
-            });
-        }
-    };
-
-    // === EVENT BINDINGS (grouped by feature) ===========================
-    $(document).off('.dash');
-
-    // ----- Products -----------------------------------------------------
-    $id(ID.products.search).on('input.dash', function () {
-        const q = $(this).val().toLowerCase().trim();
-        App.renderProducts(q ? State.products.filter(p => p.product_name.toLowerCase().includes(q) || p.product_code.toLowerCase().includes(q)) : State.products);
+            );
+        }, 300);
     });
 
-    // ----- Add Product --------------------------------------------------
-    $id(ID.products.addBtn).on('click.dash', App.openAdd);
-    $(document).on('input.dash', '#ap-qty, #ap-cost', () => {
-        $id(ID.add.totalCapital).text(peso(($id(ID.add.qty).val()||0) * ($id(ID.add.cost).val()||0)));
-    });
-    $id(ID.add.submit).on('click.dash', App.submitAdd);
-
-    // ----- Sell ---------------------------------------------------------
-    $(document).on('click.dash', '.js-open-sell', e => App.openSell(parseInt($(e.currentTarget).data('product-id'))));
-    $(document).on('input.dash', '#sell-qty, #sell-price', App.previewSell);
-    $id(ID.sell.submit).on('click.dash', App.submitSell);
-
-    // ----- Restock ------------------------------------------------------
-    $(document).on('click.dash', '.js-open-restock', e => App.openRestock(parseInt($(e.currentTarget).data('product-id'))));
-    $(document).on('input.dash', '#restock-qty, #restock-cost', () => {
-        $id(ID.restock.capital).text(peso(($id(ID.restock.qty).val()||0) * ($id(ID.restock.cost).val()||0)));
-    });
-    $id(ID.restock.submit).on('click.dash', App.submitRestock);
-
-    // ----- Modals -------------------------------------------------------
-    $(document).on('click.dash', '.js-close-modal', e => Modal.close($(e.currentTarget).data('modal')));
-    $(document).on('click.dash', '#modalAddProduct, #modalSell, #modalRestock', e => {
-        if (e.target === e.currentTarget) Modal.close(e.currentTarget.id);
+    // ── Confirm sale ───────────────────────────────────────────────
+    $("#btnSubmitSell").on("click", function () {
+        $.post("backend/bk_dashboard.php", {
+            request:    "sellProduct",
+            product_id: $("#sell-productId").val(),
+            quantity:   $("#sell-qty").val(),
+            sell_price: $("#sell-price").val(),
+        }, raw => {
+            const d = JSON.parse(raw);
+            if (!d.success) { alert(d.error); return; }
+            $("#modalSell").addClass("hidden");
+            loadProductCards();
+        });
     });
 
-    // === BOOT ===========================================================
-    App.startClock();
-    App.refresh();
+    // ── Confirm restock ────────────────────────────────────────────
+    $("#btnSubmitRestock").on("click", function () {
+        $.post("backend/bk_dashboard.php", {
+            request:    "restockProduct",
+            product_id: $("#restock-productId").val(),
+            quantity:   $("#restock-qty").val(),
+            unit_cost:  $("#restock-cost").val(),
+        }, raw => {
+            const d = JSON.parse(raw);
+            if (!d.success) { alert(d.error); return; }
+            $("#modalRestock").addClass("hidden");
+            loadProductCards();
+        });
+    });
+
+    // ── Restock capital preview ────────────────────────────────────
+    $("#restock-qty, #restock-cost").on("input", function () {
+        const qty  = parseFloat($("#restock-qty").val())  || 0;
+        const cost = parseFloat($("#restock-cost").val()) || 0;
+        $("#restock-previewCapital").text("₱" + (qty * cost).toFixed(2));
+    });
+
+    // ── Add product capital preview ────────────────────────────────
+    $("#ap-qty, #ap-cost").on("input", function () {
+        const qty  = parseFloat($("#ap-qty").val())  || 0;
+        const cost = parseFloat($("#ap-cost").val()) || 0;
+        $("#ap-totalCapital").text("₱" + (qty * cost).toFixed(2));
+    });
+
+    // ── Confirm add product ────────────────────────────────────────
+    $("#btnSubmitAddProduct").on("click", function () {
+        $.post("backend/bk_dashboard.php", {
+            request: "addProduct",
+            name:    $("#ap-name").val(),
+            code:    $("#ap-code").val(),
+            desc:    $("#ap-desc").val(),
+            qty:     $("#ap-qty").val(),
+            cost:    $("#ap-cost").val(),
+        }, raw => {
+            const d = JSON.parse(raw);
+            if (!d.success) { alert(d.error); return; }
+            $("#modalAddProduct").addClass("hidden");
+            loadProductCards();
+        });
+    });
+
+    // ── Modal close (any .js-close-modal button) ───────────────────
+    $(document).on("click", ".js-close-modal", function () {
+        $("#" + $(this).data("modal")).addClass("hidden");
+    });
+
+    // ── Live clock ─────────────────────────────────────────────────
+    (function tick() {
+        $("#dashClock").text(new Date().toLocaleString("en-PH", {
+            weekday: "short", year: "numeric", month: "short",
+            day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit"
+        }));
+        setTimeout(tick, 1000);
+    })();
+
+    // ── Add product modal open ─────────────────────────────────────
+    $("#btnAddProduct").on("click", () => $("#modalAddProduct").removeClass("hidden"));
+
 });
+
 </script>
